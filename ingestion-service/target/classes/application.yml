@@ -1,0 +1,63 @@
+spring:
+  application:
+    name: rag-ingestion-service
+
+  # ── Multipart upload limits ─────────────────────────────────────────────────
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 55MB
+
+  # ── Kafka Producer ──────────────────────────────────────────────────────────
+  # SPRING_KAFKA_BOOTSTRAP_SERVERS env var overrides this in Docker.
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      client-id: rag-ingestion-producer
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+  # ── AWS / Spring Cloud AWS ──────────────────────────────────────────────────
+  # Credentials come from the AWS Default Provider Chain (env vars AWS_ACCESS_KEY_ID /
+  # AWS_SECRET_ACCESS_KEY, IAM role, ~/.aws/credentials — whichever is present first).
+  cloud:
+    aws:
+      region:
+        static: ${AWS_REGION:us-east-1}
+      # S3 endpoint is overridden in Docker to point at LocalStack.
+      # Leave unset for real AWS.
+      s3:
+        endpoint: ${SPRING_CLOUD_AWS_S3_ENDPOINT:}
+        path-style-access-enabled: ${SPRING_CLOUD_AWS_S3_PATH_STYLE_ACCESS_ENABLED:false}
+
+  # ── Jackson ─────────────────────────────────────────────────────────────────
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+# ── Application-level config ───────────────────────────────────────────────────
+app:
+  s3:
+    bucket-name: ${S3_BUCKET_NAME:rag-pipeline-documents}
+    key-prefix: documents/
+  kafka:
+    topics:
+      document-processing: document-processing-queue
+
+# ── Actuator ──────────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+  endpoint:
+    health:
+      show-details: always
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+logging:
+  level:
+    com.enterprise.ragpipeline: DEBUG
+    org.springframework.kafka: INFO
+    software.amazon.awssdk: WARN
