@@ -36,6 +36,15 @@ spring:
     serialization:
       write-dates-as-timestamps: false
 
+  # ── Spring AI / OpenAI ───────────────────────────────────────────────────────
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      chat:
+        options:
+          model: gpt-4o-mini
+          temperature: 0.3
+
 # ── Application-level config ───────────────────────────────────────────────────
 app:
   s3:
@@ -44,6 +53,16 @@ app:
   kafka:
     topics:
       document-processing: document-processing-queue
+
+  # ── Phase 3: Milvus vector DB ────────────────────────────────────────────────
+  milvus:
+    host: ${MILVUS_HOST:milvus-standalone}
+    port: ${MILVUS_PORT:19530}
+    top-k: 5
+
+  # ── Phase 3: ML Worker sidecar ───────────────────────────────────────────────
+  ml-worker:
+    base-url: ${ML_WORKER_BASE_URL:http://ml-worker:8000}
 
 # ── Actuator ──────────────────────────────────────────────────────────────────
 management:
