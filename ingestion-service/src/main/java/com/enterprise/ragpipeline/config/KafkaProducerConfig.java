@@ -68,7 +68,7 @@ public class KafkaProducerConfig {
      */
     @Bean
     public NewTopic documentProcessingTopic(KafkaTopicProperties topicProperties) {
-        return TopicBuilder.name(topicProperties.getDocumentProcessing())
+        return TopicBuilder.name(topicProperties.documentProcessing())
                 .partitions(3)
                 .replicas(1)
                 .build();

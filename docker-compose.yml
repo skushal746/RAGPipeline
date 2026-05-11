@@ -107,12 +107,15 @@ services:
       retries: 5
       start_period: 20s
 
-  # ── Ingestion Service (Spring Boot) ───────────────────────────────────────
+  # ── Ingestion Service (Spring Boot — Maven live reload) ───────────────────
   ingestion-service:
-    build:
-      context: ./ingestion-service
-      dockerfile: Dockerfile
+    image: maven:3.9.6-eclipse-temurin-17
     container_name: rag-ingestion-service
+    working_dir: /app
+    volumes:
+      - ./ingestion-service:/app
+      - ingestion-service-m2:/root/.m2
+    command: mvn spring-boot:run
     ports:
       - "8080:8080"
     depends_on:
@@ -151,8 +154,8 @@ services:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1" ]
       interval: 15s
       timeout: 10s
-      retries: 5
-      start_period: 60s
+      retries: 8
+      start_period: 180s
     restart: on-failure
 
   # ── ML Worker (Python — Phase 2: Kafka consumer + embeddings + Milvus) ──────
@@ -261,14 +264,19 @@ services:
         condition: service_healthy
     restart: on-failure
 
-  # ── Frontend (React) ───────────────────────────────────────────────────────
+  # ── Frontend (React — Vite dev server) ────────────────────────────────────
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: node:20-alpine
     container_name: rag-frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
     ports:
-      - "3000:80"
+      - "3000:5173"
+    environment:
+      API_TARGET: http://ingestion-service:8080
+    command: sh -c "npm install && npm run dev"
     depends_on:
       ingestion-service:
         condition: service_healthy
@@ -281,3 +289,5 @@ volumes:
   minio-data:
   milvus-data:
   postgres-data:
+  frontend-node-modules:
+  ingestion-service-m2:

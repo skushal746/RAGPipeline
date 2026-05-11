@@ -2,6 +2,12 @@ spring:
   application:
     name: rag-ingestion-service
 
+  # ── DevTools (dev only — ignored when devtools jar is absent in prod) ───────
+  devtools:
+    restart:
+      poll-interval: 2s
+      quiet-period: 1s
+
   # ── PostgreSQL / JPA ────────────────────────────────────────────────────────
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ragdb}

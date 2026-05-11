@@ -37,7 +37,7 @@ public class KafkaProducerService {
      * before returning HTTP 202 to the caller.
      */
     public void publishIngestionEvent(DocumentIngestionEvent event) {
-        String topic = topicProperties.getDocumentProcessing();
+        String topic = topicProperties.documentProcessing();
 
         // documentId is always set by DocumentService before this call
         String documentId = Objects.requireNonNull(event.getDocumentId(), "documentId must not be null");

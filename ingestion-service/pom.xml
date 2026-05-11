@@ -83,6 +83,13 @@
             <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
 
+        <!-- DevTools — live restart on classpath changes; excluded from fat jar -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Lombok — annotation processor only, excluded from the fat jar -->
         <dependency>
             <groupId>org.projectlombok</groupId>
