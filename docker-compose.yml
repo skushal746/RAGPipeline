@@ -7,12 +7,14 @@
 #                       EXTERNAL://localhost:9092 ← used by host machine
 #   kafka-ui          — Kafbat UI dashboard  → http://localhost:8090
 #   localstack        — AWS S3 emulation; bucket auto-created via init script
+#   postgres          — User auth database   → localhost:5432
 #   ingestion-service — Spring Boot ingestion layer (Phase 1)
 #   ml-worker         — Python ML consumer (Phase 2, placeholder)
 #   etcd              — Milvus metadata store (internal)
 #   milvus-minio      — Milvus object storage / MinIO (internal)
 #   milvus-standalone — Vector database → localhost:19530 (gRPC), :9091 (HTTP)
 #   attu              — Milvus GUI       → http://localhost:8001
+#   frontend          — React SPA        → http://localhost:3000
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
@@ -38,6 +40,10 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_NUM_PARTITIONS: 3
       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      # Single-broker: internal system topics must also use RF=1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
     healthcheck:
       test: [ "CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list 2>/dev/null || exit 1" ]
       interval: 15s
@@ -82,6 +88,25 @@ services:
       retries: 5
       start_period: 20s
 
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: rag-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ragdb
+      POSTGRES_USER: raguser
+      POSTGRES_PASSWORD: ragpass
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U raguser -d ragdb" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
   # ── Ingestion Service (Spring Boot) ───────────────────────────────────────
   ingestion-service:
     build:
@@ -94,6 +119,8 @@ services:
       kafka:
         condition: service_healthy
       localstack:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
@@ -108,11 +135,24 @@ services:
 
       S3_BUCKET_NAME: rag-pipeline-documents
 
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ragdb
+      SPRING_DATASOURCE_USERNAME: raguser
+      SPRING_DATASOURCE_PASSWORD: ragpass
+
+      JWT_SECRET: ${JWT_SECRET:-rag-pipeline-secret-key-change-in-production-32chars}
+      JWT_EXPIRY_MS: "86400000"
+
       # Phase 3 — RAG query layer
       MILVUS_HOST: milvus-standalone
       MILVUS_PORT: "19530"
       ML_WORKER_BASE_URL: http://ml-worker:8000
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1" ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     restart: on-failure
 
   # ── ML Worker (Python — Phase 2: Kafka consumer + embeddings + Milvus) ──────
@@ -221,9 +261,23 @@ services:
         condition: service_healthy
     restart: on-failure
 
+  # ── Frontend (React) ───────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rag-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      ingestion-service:
+        condition: service_healthy
+    restart: on-failure
+
 volumes:
   kafka-data:
   localstack-data:
   etcd-data:
   minio-data:
   milvus-data:
+  postgres-data:

@@ -2,6 +2,20 @@ spring:
   application:
     name: rag-ingestion-service
 
+  # ── PostgreSQL / JPA ────────────────────────────────────────────────────────
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ragdb}
+    username: ${SPRING_DATASOURCE_USERNAME:raguser}
+    password: ${SPRING_DATASOURCE_PASSWORD:ragpass}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
   # ── Multipart upload limits ─────────────────────────────────────────────────
   servlet:
     multipart:
@@ -63,6 +77,12 @@ app:
   # ── Phase 3: ML Worker sidecar ───────────────────────────────────────────────
   ml-worker:
     base-url: ${ML_WORKER_BASE_URL:http://ml-worker:8000}
+
+  # ── JWT ──────────────────────────────────────────────────────────────────────
+  jwt:
+    # Must be >= 32 chars (256-bit) for HMAC-SHA256. Override in prod via env var.
+    secret: ${JWT_SECRET:rag-pipeline-secret-key-change-in-production-32chars}
+    expiry-ms: ${JWT_EXPIRY_MS:86400000}
 
 # ── Actuator ──────────────────────────────────────────────────────────────────
 management:
